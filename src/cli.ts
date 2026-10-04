@@ -11,10 +11,9 @@
  */
 
 import { parseArgs } from "node:util";
-import { proxyFromEnvironment } from "./core/proxy.js";
+import { browserOptionsFromEnvironment } from "./core/config.js";
 import { runWorkflow } from "./core/runner.js";
 import { registry } from "./workflows/index.js";
-import { createTestServer } from "../test-site/server.js";
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -46,19 +45,19 @@ if (command === "list") {
   for (const wf of registry.list()) console.log(`${wf.name.padEnd(20)} ${wf.description}`);
 } else if (command === "run" && name) {
   const workflow = registry.get(name);
-  const server = values.serve ? createTestServer() : null;
+  const server = values.serve ? (await import("../test-site/server.js")).createTestServer() : null;
   const baseUrl = server ? await server.listen(0) : values["base-url"];
 
   try {
     const result = await runWorkflow(workflow, {
       config: baseUrl ? { baseUrl } : {},
       input: parseSet(values.set!),
-      browser: {
-        proxy: proxyFromEnvironment(process.env, values.proxy),
+      browser: browserOptionsFromEnvironment(process.env, {
+        proxyServer: values.proxy,
         headless: !values.headed,
         humanize: values.humanize,
         slowMo: values["slow-mo"] ? Number(values["slow-mo"]) : undefined,
-      },
+      }),
     });
     console.log(JSON.stringify({ ok: result.ok, output: result.output, error: result.error, screenshot: result.screenshot, report: result.reportPath }, null, 2));
     if (server) console.log(`Contas no servidor local: ${server.accounts.size}`);

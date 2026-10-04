@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { recaptchaFromEnvironment, verifyRecaptcha, type RecaptchaConfig } from "../test-site/recaptcha.js";
+import { recaptchaFromEnvironment, verifyRecaptcha, type RecaptchaConfig } from "../src/integrations/recaptcha.js";
 import { createTestServer } from "../test-site/server.js";
 const config: RecaptchaConfig = { siteKey: "public-key", secretKey: "private-secret", allowedHostnames: ["localhost"] };
 const payload = { fullName: "Maria Teste", email: "maria@example.test", password: "test-password", confirmPassword: "test-password", country: "BR", terms: true };

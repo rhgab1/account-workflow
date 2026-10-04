@@ -1,10 +1,21 @@
 import type { Page } from "playwright-core";
 
+export interface ProxyOptions {
+  server: string;
+  /** Use {session} somente se o seu provedor aceitar esse formato. */
+  username?: string;
+  password?: string;
+}
+
 /** Opções repassadas ao `launch()` do CloakBrowser. */
 export interface BrowserOptions {
   headless?: boolean;
   /** Gateway da pool; a rotação de IP é controlada pelo provedor. */
-  proxy?: { server: string; username?: string; password?: string };
+  proxy?: ProxyOptions;
+  /** Alternativa a proxy: escolhe um gateway aleatório por execução. */
+  proxyPool?: readonly ProxyOptions[];
+  /** Impede executar diretamente quando nenhum proxy foi configurado. */
+  requireProxy?: boolean;
   /** Mouse/teclado com ritmo humano (recurso nativo do CloakBrowser). */
   humanize?: boolean;
   locale?: string;
