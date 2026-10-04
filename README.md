@@ -189,3 +189,90 @@ consultar Google ou depender de chaves reais.
 
 Documentação: https://developers.google.com/recaptcha/docs/display e
 https://docs.cloud.google.com/recaptcha/docs/verify
+
+## API de módulos reutilizáveis
+
+Importe `src/index.ts` em outro projeto TypeScript/tsx para usar o core sem carregar
+a CLI, o registro do formulário local ou o servidor de teste:
+
+```ts
+import {
+  defineWorkflow, runWorkflow, browserOptionsFromEnvironment,
+  goto, fillForm, submitAndCapture, waitVisible,
+} from "./src/index.js";
+
+const workflow = defineWorkflow({
+  name: "meu-site",
+  description: "Fluxo no meu formulário",
+  defaults: { baseUrl: "https://meu-site.example" },
+  buildInput: (input: { name?: string }) => ({ name: input.name ?? "Teste" }),
+  steps: [
+    goto("/cadastro"),
+    fillForm({ "#name": ctx => ctx.input.name }),
+    submitAndCapture("button[type=submit]", { urlPart: "/api/register" }),
+    waitVisible(".success"),
+  ],
+});
+await runWorkflow(workflow, {
+  browser: browserOptionsFromEnvironment(process.env, { headless: false }),
+});
+```
+
+URLs, seletores, dados e regras pertencem ao workflow de cada site. Os módulos são
+reutilizáveis, mas um workflow não passa a funcionar em qualquer site sem adaptar
+essa configuração. Não é necessário modificar o core para registrar outro site.
+`src/index.ts` é uma API de fonte TypeScript; não é um pacote JavaScript compilado.
+
+| Módulo | Responsabilidade |
+| --- | --- |
+| `core/browser.ts` | Abrir/fechar navegador e contexto limpos |
+| `core/session.ts` | Gerar identidade, seed e escolher proxy por execução |
+| `core/config.ts` | Carregar configuração comum para CLI ou código |
+| `core/proxy.ts` | Validar gateway e separar credenciais |
+| `core/steps.ts` | Navegar, preencher, capturar, extrair, esperar e ramificar |
+| `core/runner.ts` | Executar qualquer definição, logging e relatórios |
+| `core/registry.ts` | Definir e registrar workflows |
+| `integrations/recaptcha.ts` | Validar tokens no backend de sites próprios |
+| `workflows/` | Somente seletores e regras específicas de cada site |
+| `test-site/` | Aplicação de exemplo que consome os módulos |
+
+### Identidade e rede por execução
+
+Toda chamada de `openSession()` (usada por `runWorkflow()`) gera uma nova identidade
+e uma seed aleatória de fingerprint para o CloakBrowser. A mesma configuração de
+opções pode ser reutilizada: ela não é modificada. Seeds podem se repetir, e nem
+todo atributo do navegador varia. Credenciais do proxy não ficam em `Session.identity`.
+
+Para exigir proxy em toda execução:
+```powershell
+$env:WORKFLOW_REQUIRE_PROXY = "true"
+$env:WORKFLOW_PROXY_SERVER = "http://gateway.seu-provedor.com:8080"
+$env:WORKFLOW_PROXY_USERNAME = "usuario-session-{session}"
+$env:WORKFLOW_PROXY_PASSWORD = "sua-senha"
+```
+
+O placeholder `{session}` no usuário é substituído por um identificador novo em
+cada abertura. Use-o apenas no formato de usuário que seu provedor documentar;
+ele não troca IP por conta própria. A configuração permanece estável durante o
+workflow. Um gateway rotativo sem suporte a sessões continua sob as regras do provedor.
+
+Se tiver vários gateways, pode escolher um aleatoriamente por execução:
+```powershell
+$env:WORKFLOW_PROXY_POOL = '["http://gateway1:8080","http://gateway2:8080"]'
+```
+
+A pool tem prioridade sobre `WORKFLOW_PROXY_SERVER`; `--proxy` sobrescreve ambos.
+No código, use `proxy` ou `proxyPool` em `BrowserOptions`. Seleção aleatória pode
+repetir gateways e IPs; a troca efetiva e a permanência do IP dependem do provedor.
+O framework não promete IP único e não altera o IP local do computador.
+Sem proxy, o modo direto continua disponível salvo quando `requireProxy` está ativo.
+
+### Verificações reutilizáveis
+
+`when(predicate, step)` executa um passo condicional. `waitForManualInput(selector,
+timeout)` aguarda um campo preenchido pelo usuário sem extrair ou salvar seu valor.
+Cada workflow fornece seu seletor e sua condição; o core não conhece o formulário
+local. A validação reCAPTCHA pode ser importada de
+`src/integrations/recaptcha.ts` em backends de sites próprios. Nenhum módulo resolve
+desafios automaticamente. A exportação antiga em `test-site/recaptcha.ts` permanece
+como compatibilidade.

@@ -7,7 +7,7 @@
  */
 
 import http from "node:http";
-import { recaptchaFromEnvironment, verifyRecaptcha, type RecaptchaConfig } from "./recaptcha.js";
+import { recaptchaFromEnvironment, verifyRecaptcha, type RecaptchaConfig } from "../src/integrations/recaptcha.js";
 import crypto from "node:crypto";
 import path from "node:path";
 import { readFile } from "node:fs/promises";

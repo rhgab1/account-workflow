@@ -111,3 +111,25 @@ export const custom = <I = any>(name: string, run: Step<I>["run"]): Step<I> => (
 
 /** Marca um passo como opcional (falha não interrompe o workflow). */
 export const optional = <I>(step: Step<I>): Step<I> => ({ ...step, optional: true });
+
+/** Executa um step somente quando a condição do site se aplica. */
+export const when = <I>(
+  predicate: (ctx: WorkflowContext<I>) => boolean | Promise<boolean>,
+  step: Step<I>,
+): Step<I> => ({
+  name: step.name,
+  optional: step.optional,
+  async run(ctx) { if (await predicate(ctx)) return step.run(ctx); },
+});
+
+/** Espera input/textarea preenchido pelo usuário, sem extrair/gravar seu valor. */
+export const waitForManualInput = (selector: string, timeout = 120000): Step => ({
+  name: "aguardar verificação manual",
+  async run(ctx) {
+    ctx.log("Conclua a verificação no navegador (use --headed).");
+    await ctx.page.waitForFunction(sel => {
+      const field = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(sel);
+      return Boolean(field?.value);
+    }, selector, { timeout });
+  },
+});
