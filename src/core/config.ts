@@ -15,7 +15,7 @@ export function browserOptionsFromEnvironment(
     catch { throw new Error("WORKFLOW_PROXY_POOL deve ser um array JSON de gateways"); }
     if (!Array.isArray(raw) || !raw.length) throw new Error("WORKFLOW_PROXY_POOL não pode ser vazia");
     const proxyPool: ProxyOptions[] = raw.map(item => {
-      if (typeof item !== "string") throw new Error("Cada gateway da pool deve ser uma URL");
+      if (typeof item !== "string" || !item.trim()) throw new Error("Cada gateway da pool deve ser uma URL");
       return proxyFromEnvironment({
         WORKFLOW_PROXY_SERVER: item,
         WORKFLOW_PROXY_USERNAME: env.WORKFLOW_PROXY_USERNAME,

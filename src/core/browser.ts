@@ -28,19 +28,19 @@ export async function openSession(opts: BrowserOptions = {}): Promise<Session> {
     launchOptions: opts.slowMo ? { slowMo: opts.slowMo } : undefined,
   });
   try {
-  const context = await browser.newContext();
-  const page = await context.newPage();
+    const context = await browser.newContext();
+    const page = await context.newPage();
 
-  return {
-    identity: { sessionId: identity.sessionId, fingerprintSeed: identity.fingerprintSeed },
-    browser,
-    context,
-    page,
-    async close() {
-      await context.close().catch(() => {});
-      await browser.close().catch(() => {});
-    },
-  };
+    return {
+      identity: { sessionId: identity.sessionId, fingerprintSeed: identity.fingerprintSeed },
+      browser,
+      context,
+      page,
+      async close() {
+        await context.close().catch(() => {});
+        await browser.close().catch(() => {});
+      },
+    };
   } catch (error) {
     await browser.close().catch(() => {});
     throw error;

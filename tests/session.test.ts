@@ -29,6 +29,8 @@ describe("session configuration reused by any workflow", () => {
   it("rejects missing required proxy or ambiguous configuration", () => {
     expect(() => createSessionIdentity({ requireProxy: true })).toThrow(/obrigatório/);
     expect(() => createSessionIdentity({ proxyPool: [] })).toThrow(/vazia/);
+    expect(() => createSessionIdentity({ proxy: { server: "" } })).toThrow(/vazio/);
+    expect(() => createSessionIdentity({ proxy: { server: "ftp://bad.test" } })).toThrow(/inválido/);
     expect(() => createSessionIdentity({ proxy: { server: "http://one.test" }, proxyPool: [{ server: "http://two.test" }] })).toThrow(/ambos/);
   });
   it("loads configuration from environment for programmatic callers", () => {
@@ -43,6 +45,6 @@ describe("session configuration reused by any workflow", () => {
     const env = { WORKFLOW_PROXY_POOL: '["http://one.test:80","http://two.test:80"]' };
     expect(browserOptionsFromEnvironment(env).proxyPool).toHaveLength(2);
     expect(browserOptionsFromEnvironment(env, { proxyServer: "http://override.test:80" }).proxy?.server).toBe("http://override.test");
-    for (const value of ["oops", "[]", "[123]"]) expect(() => browserOptionsFromEnvironment({ WORKFLOW_PROXY_POOL: value })).toThrow();
+    for (const value of ["oops", "[]", "[123]", '[""]']) expect(() => browserOptionsFromEnvironment({ WORKFLOW_PROXY_POOL: value })).toThrow();
   });
 });
