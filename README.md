@@ -161,7 +161,6 @@ Também é possível passar apenas o gateway com `--proxy http://host:porta`.
 Credenciais ficam nas variáveis de ambiente, fora do input e relatório do workflow.
 Não publique credenciais no Git. HTTP/HTTPS autenticado é aceito; SOCKS5 autenticado
 não é suportado pelo Chromium. Sem configuração, permanece a conexão direta.
-O fluxo Google continua retornando verificações e etapas manuais sem contorná-las.
 
 ## reCAPTCHA v2 no formulário genérico de teste
 
@@ -184,9 +183,8 @@ recusado ou expirado bloqueia o cadastro; indisponibilidade retorna HTTP 503.
 A secret key nunca é enviada ao navegador, e tokens não entram em logs/relatórios.
 Após tentativa recusada, o widget reinicia para obter um novo token.
 
-Isso se aplica ao formulário próprio `test-site` e `local-signup`. O workflow
-Google/Gmail não utiliza essa integração. Não inclui serviços de resolução de
-CAPTCHA. Testes de unidade/API usam respostas simuladas da verificação, sem
+Isso se aplica ao formulário próprio `test-site` e `local-signup`. Não inclui
+serviços de resolução de CAPTCHA. Testes de unidade/API usam respostas simuladas da verificação, sem
 consultar Google ou depender de chaves reais.
 
 Documentação: https://developers.google.com/recaptcha/docs/display e

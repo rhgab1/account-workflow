@@ -6,6 +6,5 @@
 
 import { WorkflowRegistry } from "../core/registry.js";
 import localSignup from "./local-signup.js";
-import googleSignup from "./google-signup.js";
 
-export const registry = new WorkflowRegistry().register(localSignup, googleSignup);
+export const registry = new WorkflowRegistry().register(localSignup);
