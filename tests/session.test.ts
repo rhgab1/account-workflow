@@ -23,7 +23,7 @@ describe("session configuration reused by any workflow", () => {
     randomUUID.mockReturnValue("session-id");
     randomInt.mockReturnValueOnce(1).mockReturnValueOnce(12345);
     const proxyPool = [{ server: "http://one.test:80" }, { server: "http://two.test:80" }];
-    expect(createSessionIdentity({ proxyPool }).proxy?.server).toBe("http://two.test:80");
+    expect(createSessionIdentity({ proxyPool }).proxy?.server).toBe("http://two.test");
     expect(randomInt).toHaveBeenCalledWith(2);
   });
   it("rejects missing required proxy or ambiguous configuration", () => {
