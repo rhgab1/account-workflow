@@ -5,7 +5,7 @@
 
 import { fakePerson } from "../core/data.js";
 import { defineWorkflow } from "../core/registry.js";
-import { assert, collectErrors, extractText, fillForm, goto, submitAndCapture, optional, waitVisible } from "../core/steps.js";
+import { assert, custom, collectErrors, extractText, fillForm, goto, submitAndCapture, optional, waitVisible } from "../core/steps.js";
 
 export interface LocalSignupInput {
   fullName: string;
@@ -56,6 +56,18 @@ export default defineWorkflow<LocalSignupInput, LocalSignupOutput>({
       "#country": (ctx) => ctx.input.country,
       "#newsletter": (ctx) => ctx.input.newsletter,
       "#terms": (ctx) => ctx.input.acceptTerms,
+    }),
+    custom("aguardar reCAPTCHA do formulário de teste", async ctx => {
+      await ctx.page.waitForFunction(() => document.querySelector<HTMLElement>("#signup-form")?.dataset.captchaReady !== "loading");
+      const form = ctx.page.locator("#signup-form");
+      if (await form.getAttribute("data-captcha-ready") !== "ready") throw new Error("Falha ao carregar reCAPTCHA/configuração");
+      if (await form.getAttribute("data-captcha-enabled") === "true") {
+        ctx.log("Conclua o reCAPTCHA no navegador (use --headed). Aguardando até 120 segundos.");
+        await ctx.page.waitForFunction(() => {
+          const field = document.querySelector<HTMLTextAreaElement>('[name="g-recaptcha-response"]');
+          return Boolean(field?.value);
+        }, undefined, { timeout: 120000 });
+      }
     }),
     submitAndCapture("#submit", { urlPart: "/api/register", saveAs: "signup" }),
     // Se o servidor recusou, registra as mensagens exibidas antes de falhar.

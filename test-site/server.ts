@@ -7,6 +7,7 @@
  */
 
 import http from "node:http";
+import { recaptchaFromEnvironment, verifyRecaptcha, type RecaptchaConfig } from "./recaptcha.js";
 import crypto from "node:crypto";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
@@ -22,6 +23,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const COUNTRIES = new Set(["BR", "PT", "US", "AR"]);
 
 export interface RegistrationPayload {
+  "g-recaptcha-response"?: string;
   fullName?: string;
   email?: string;
   password?: string;
@@ -62,18 +64,36 @@ async function readBody(req: http.IncomingMessage): Promise<RegistrationPayload>
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
-export function createTestServer() {
+export function createTestServer(options: { recaptcha?: RecaptchaConfig; fetcher?: typeof fetch } = {}) {
+  const recaptcha = options.recaptcha ?? recaptchaFromEnvironment(process.env);
   const accounts = new Map<string, Account>();
 
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", "http://localhost");
 
+      if (req.method === "GET" && url.pathname === "/api/captcha-config") {
+        res.setHeader("cache-control", "no-store");
+        return json(res, 200, { enabled: Boolean(recaptcha), siteKey: recaptcha?.siteKey });
+      }
+
       if (req.method === "POST" && url.pathname === "/api/register") {
         const body = await readBody(req);
         const errors = validateRegistration(body);
         if ([...accounts.values()].some((a) => a.email === body.email)) errors.email = "E-mail já cadastrado";
         if (Object.keys(errors).length) return json(res, 422, { ok: false, errors });
+
+        if (recaptcha) {
+          const verification = await verifyRecaptcha(body["g-recaptcha-response"], recaptcha, options.fetcher);
+          if (verification !== "valid") return json(res, verification === "unavailable" ? 503 : 422, {
+            ok: false, errors: { captcha: verification === "unavailable"
+              ? "Verificação indisponível. Tente novamente."
+              : "Conclua o reCAPTCHA novamente." },
+          });
+          // Another request may have registered the same email during verification.
+          if ([...accounts.values()].some(a => a.email === body.email))
+            return json(res, 422, { ok: false, errors: { email: "E-mail já cadastrado" } });
+        }
 
         const account: Account = {
           id: crypto.randomUUID(),

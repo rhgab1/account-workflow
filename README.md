@@ -162,3 +162,32 @@ Credenciais ficam nas variáveis de ambiente, fora do input e relatório do work
 Não publique credenciais no Git. HTTP/HTTPS autenticado é aceito; SOCKS5 autenticado
 não é suportado pelo Chromium. Sem configuração, permanece a conexão direta.
 O fluxo Google continua retornando verificações e etapas manuais sem contorná-las.
+
+## reCAPTCHA v2 no formulário genérico de teste
+
+O `test-site` pode exigir reCAPTCHA v2 (checkbox) antes de criar uma conta.
+Sem chaves, o formulário continua funcionando sem CAPTCHA. Configure as duas
+chaves juntas; configuração incompleta impede iniciar o servidor.
+
+```powershell
+$env:RECAPTCHA_SITE_KEY = "sua-site-key-v2"
+$env:RECAPTCHA_SECRET_KEY = "sua-secret-key"
+$env:RECAPTCHA_ALLOWED_HOSTNAMES = "localhost,127.0.0.1"
+npm run workflow -- run local-signup --serve --headed
+```
+
+Use chaves v2 compatíveis com a API `siteverify` e autorize o hostname usado no
+console do reCAPTCHA. O navegador mostra o widget; você conclui a verificação e
+o workflow aguarda até 120 segundos antes de enviar o formulário. O servidor
+valida o token na API oficial e confere o hostname permitido. Token ausente,
+recusado ou expirado bloqueia o cadastro; indisponibilidade retorna HTTP 503.
+A secret key nunca é enviada ao navegador, e tokens não entram em logs/relatórios.
+Após tentativa recusada, o widget reinicia para obter um novo token.
+
+Isso se aplica ao formulário próprio `test-site` e `local-signup`. O workflow
+Google/Gmail não utiliza essa integração. Não inclui serviços de resolução de
+CAPTCHA. Testes de unidade/API usam respostas simuladas da verificação, sem
+consultar Google ou depender de chaves reais.
+
+Documentação: https://developers.google.com/recaptcha/docs/display e
+https://docs.cloud.google.com/recaptcha/docs/verify

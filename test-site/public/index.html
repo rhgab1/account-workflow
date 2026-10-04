@@ -17,7 +17,7 @@
   </style>
 </head>
 <body>
-  <form id="signup-form" novalidate>
+  <form id="signup-form" novalidate data-captcha-ready="loading">
     <h1>Criar conta</h1>
 
     <label for="fullName">Nome completo</label>
@@ -50,7 +50,12 @@
     <label class="inline"><input id="terms" name="terms" type="checkbox"> Aceito os termos de uso</label>
     <div class="error" data-error-for="terms"></div>
 
-    <button type="submit" id="submit">Cadastrar</button>
+    <div id="captcha-section" hidden>
+      <p>Conclua a verificação para cadastrar.</p>
+      <div id="captcha-widget"></div>
+      <div class="error" data-error-for="captcha" role="alert"></div>
+    </div>
+    <button type="submit" id="submit" disabled>Cadastrar</button>
     <div class="error" id="form-error"></div>
   </form>
 
@@ -61,12 +66,60 @@
 
   <script>
     const form = document.getElementById('signup-form');
+    let captchaEnabled = false;
+    let captchaWidget;
+    const submit = document.getElementById('submit');
+    function captchaError(message) {
+      document.querySelector('[data-error-for="captcha"]').textContent = message;
+    }
+    async function initializeCaptcha() {
+      try {
+        const res = await fetch('/api/captcha-config');
+        if (!res.ok) throw new Error('config');
+        const config = await res.json();
+        captchaEnabled = config.enabled === true;
+        form.dataset.captchaEnabled = String(captchaEnabled);
+        if (!captchaEnabled) {
+          form.dataset.captchaReady = 'ready';
+          submit.disabled = false;
+          return;
+        }
+        document.getElementById('captcha-section').hidden = false;
+        window.onTestRecaptchaLoad = () => {
+          captchaWidget = window.grecaptcha.render('captcha-widget', {
+            sitekey: config.siteKey,
+            callback: () => { captchaError(''); submit.disabled = false; },
+            'expired-callback': () => { captchaError('Verificação expirou. Conclua novamente.'); submit.disabled = true; },
+            'error-callback': () => { captchaError('Falha ao carregar a verificação. Recarregue a página.'); submit.disabled = true; },
+          });
+          form.dataset.captchaReady = 'ready';
+        };
+        const script = document.createElement('script');
+        script.src = 'https://www.google.com/recaptcha/api.js?onload=onTestRecaptchaLoad&render=explicit&hl=pt-BR';
+        script.async = true;
+        script.defer = true;
+        script.onerror = () => {
+          form.dataset.captchaReady = 'error';
+          captchaError('Falha ao carregar a verificação. Recarregue a página.');
+        };
+        document.head.appendChild(script);
+      } catch {
+        form.dataset.captchaReady = 'error';
+        document.getElementById('form-error').textContent = 'Falha ao carregar configuração. Recarregue a página.';
+      }
+    }
+    initializeCaptcha();
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (form.dataset.captchaReady !== 'ready') return;
       document.querySelectorAll('.error').forEach((el) => (el.textContent = ''));
       const data = Object.fromEntries(new FormData(form));
       data.terms = form.terms.checked;
       data.newsletter = form.newsletter.checked;
+      if (captchaEnabled) {
+        data['g-recaptcha-response'] = window.grecaptcha.getResponse(captchaWidget);
+        if (!data['g-recaptcha-response']) { captchaError('Conclua o reCAPTCHA.'); return; }
+      }
 
       const btn = document.getElementById('submit');
       btn.disabled = true;
@@ -90,7 +143,10 @@
       } catch (err) {
         document.getElementById('form-error').textContent = 'Falha de rede: ' + err.message;
       } finally {
-        btn.disabled = false;
+        if (captchaEnabled && !form.hidden) {
+          window.grecaptcha.reset(captchaWidget);
+          btn.disabled = true;
+        } else btn.disabled = false;
       }
     });
   </script>
